@@ -1,10 +1,88 @@
 ﻿@page
 @model IndexModel
 @{
-    ViewData["Title"] = "Home page";
+    ViewData["Title"] = "SQL Optimizer 2077";
 }
 
-<div class="text-center">
-    <h1 class="display-4">Welcome</h1>
-    <p>Learn about <a href="https://learn.microsoft.com/aspnet/core">building Web apps with ASP.NET Core</a>.</p>
+<div class="container py-5">
+    <h1 class="display-4 text-center mb-4" style="font-family: 'Orbitron', sans-serif; color: #00fff7; text-shadow: 0 0 10px #00fff7, 0 0 20px #ff00cc;">SQL OPTIMIZER 2077</h1>
+    <ul class="nav nav-tabs" id="optimizerTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="simple-tab" data-bs-toggle="tab" data-bs-target="#simple" type="button" role="tab" aria-controls="simple" aria-selected="true">Simple Optimize</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="tableaware-tab" data-bs-toggle="tab" data-bs-target="#tableaware" type="button" role="tab" aria-controls="tableaware" aria-selected="false">Table-Aware Optimize</button>
+        </li>
+    </ul>
+    <div class="tab-content" id="optimizerTabsContent">
+        <div class="tab-pane fade show active" id="simple" role="tabpanel" aria-labelledby="simple-tab">
+            <form class="mt-4" id="simpleForm">
+                <div class="mb-3">
+                    <label for="simpleSql" class="form-label">SQL Query</label>
+                    <textarea class="form-control" id="simpleSql" rows="6" placeholder="Enter your SQL query here..."></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary">Optimize</button>
+            </form>
+            <div id="simpleResult" class="mt-3"></div>
+        </div>
+        <div class="tab-pane fade" id="tableaware" role="tabpanel" aria-labelledby="tableaware-tab">
+            <form class="mt-4" id="tableAwareForm">
+                <div class="mb-3">
+                    <label for="tableSql" class="form-label">SQL Query</label>
+                    <textarea class="form-control" id="tableSql" rows="4" placeholder="Enter your SQL query here..."></textarea>
+                </div>
+                <div class="mb-3">
+                    <label for="tableDef" class="form-label">Table Definition</label>
+                    <textarea class="form-control" id="tableDef" rows="4" placeholder="Paste your CREATE TABLE statement here..."></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary">Optimize</button>
+            </form>
+            <div id="tableAwareResult" class="mt-3"></div>
+        </div>
+    </div>
 </div>
+
+@section Scripts {
+<script>
+// Handle Simple Optimize form
+const simpleForm = document.getElementById('simpleForm');
+simpleForm.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const sql = document.getElementById('simpleSql').value;
+    const resultDiv = document.getElementById('simpleResult');
+    resultDiv.innerHTML = '<span style="color:#00fff7">Optimizing...</span>';
+    try {
+        const response = await fetch('http://localhost:5233/optimizer/query/optimize-without-table', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sqlQuery: sql, tableDefinition: '' })
+        });
+        const data = await response.json();
+        resultDiv.innerHTML = `<pre style="color:#ff00cc">${data.optimizedQuery || JSON.stringify(data)}</pre>`;
+    } catch (err) {
+        resultDiv.innerHTML = `<span style="color:red">Error: ${err}</span>`;
+    }
+});
+
+// Handle Table-Aware Optimize form
+const tableAwareForm = document.getElementById('tableAwareForm');
+tableAwareForm.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const sql = document.getElementById('tableSql').value;
+    const table = document.getElementById('tableDef').value;
+    const resultDiv = document.getElementById('tableAwareResult');
+    resultDiv.innerHTML = '<span style="color:#00fff7">Optimizing...</span>';
+    try {
+        const response = await fetch('http://localhost:5233/optimizer/query/optimize-with-table', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sqlQuery: sql, tableDefinition: table })
+        });
+        const data = await response.json();
+        resultDiv.innerHTML = `<pre style="color:#ff00cc">${data.optimizedQuery || JSON.stringify(data)}</pre>`;
+    } catch (err) {
+        resultDiv.innerHTML = `<span style="color:red">Error: ${err}</span>`;
+    }
+});
+</script>
+}
