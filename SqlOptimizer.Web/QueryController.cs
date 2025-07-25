@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using SqlOptimizer.Web.Services;
 
 namespace SqlOptimizer.Web
 {
@@ -6,19 +7,26 @@ namespace SqlOptimizer.Web
     [Route("optimizer/[controller]")]
     public class QueryController : ControllerBase
     {
+        private readonly ISqlOptimizerService _optimizerService;
+        public QueryController(ISqlOptimizerService optimizerService)
+        {
+            _optimizerService = optimizerService;
+        }
+
         // POST: optimizer/query/optimize-with-table
         [HttpPost("optimize-with-table")]
         public IActionResult OptimizeWithTable([FromBody] OptimizeWithTableRequest request)
         {
-            // TODO: Implement SQL optimization logic using request.SqlQuery and request.TableDefinition
-            return Ok(new { OptimizedQuery = "-- Optimized SQL will appear here" });
+            var result = _optimizerService.OptimizeQueryWithTable(request.SqlQuery, request.TableDefinition);
+            return Ok(new { OptimizedQuery = result });
         }
 
         // POST: optimizer/query/optimize-without-table
         [HttpPost("optimize-without-table")]
         public IActionResult OptimizeWithoutTable([FromBody] OptimizeWithoutTableRequest request)
         {
-            return Ok(new { Message = "Optimized query without table" });
+            var result = _optimizerService.OptimizeQuery(request.SqlQuery);
+            return Ok(new { OptimizedQuery = result });
         }
     }
 
