@@ -42,7 +42,10 @@ namespace SqlOptimizer.Web.Services
                 return results;
 
             foreach (var stmt in result.Statements)
-            {
+            {                    
+                var enhancements = new List<string>();
+                DetectSqlInjectionVulnerabilities(stmt, enhancements);
+                
                 // SELECT
                 if (stmt is SelectStatement select)
                 {
@@ -57,23 +60,11 @@ namespace SqlOptimizer.Web.Services
                         DetectLateWhereClauses(select, enhancements);
                         DetectRepeatedConditions(result.Statements, enhancements);
                     }
-                    if (select.OrderBy.Count == 0)
-                    {
-                        enhancements.Add("Avoid ORDER BY, it is unnessesary");
-                    }
-                    if (select.Limit != null)
-                    {
-                        enhancements.Add("Avoid LIMIT, it is unnessesary");
-                    }
-                    if (select.Offset != null) 
-                    {
-
-                    }
                 }
                 // INSERT
                 else if (stmt is InsertStatement insert)
                 {
-
+                    DetectUnsafeInsertStatements(insert, enhancements);
                 }
                 // UPDATE
                 else if (stmt is UpdateStatement update)
@@ -119,6 +110,15 @@ namespace SqlOptimizer.Web.Services
             }
         }
 
+        public void DetectUnsafeInsertStatements(InsertStatement insert, List<string> enhancements)
+        {
+            // Check if INSERT uses VALUES without explicit column names
+            if (insert.Columns == null || insert.Columns.Count == 0)
+            {
+                enhancements.Add("INSERT statement missing column names. Use explicit column names for safety and clarity.");
+            }
+        }
+
         public void DetectLateWhereClauses(SelectStatement select, List<string> enhancements)
         {
             if (select.Joins.Any() && select.Where != null)
@@ -137,6 +137,21 @@ namespace SqlOptimizer.Web.Services
         private bool IsColumnFromTable(string column, string table)
         {
             return !column.Contains('.') || column.StartsWith(table + ".");
+        }
+
+        public void DetectSqlInjectionVulnerabilities(Statement stmt, List<string> enhancements)
+        {
+            var sql = stmt.ToString().ToLowerInvariant();
+            
+            if (sql.Contains("'") && sql.Contains("+"))
+            {
+                enhancements.Add("Potential SQL injection: String concatenation detected. Use parameterized queries.");
+            }
+            
+            if (sql.Contains("execute") || sql.Contains("exec"))
+            {
+                enhancements.Add("Dynamic SQL detected. Use parameterized queries for security.");
+            }
         }
     }
 } 
