@@ -12,8 +12,10 @@ builder.Services.AddCors(options =>
         .AllowAnyMethod();
     });
 });
-// Register the SQL optimizer service
+
 builder.Services.AddScoped<SqlOptimizer.Web.Services.ISqlOptimizerService, SqlOptimizer.Web.Services.SqlOptimizerService>();
+builder.Services.AddScoped<SqlOptimizer.Web.Services.ISqlParser, SqlOptimizer.Web.Services.SqlParser>();
+builder.Services.AddScoped<SqlOptimizer.Web.Services.ISqlAnalyzer, SqlOptimizer.Web.Services.SqlAnalyzer>();
 
 var app = builder.Build();
 app.UseCors();
