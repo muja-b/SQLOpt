@@ -16,10 +16,11 @@ namespace SqlOptimizer.Web.Services
     {
         string OptimizeQuery(string sqlQuery);
         string OptimizeQueryWithTable(string sqlQuery, string tableDefinition);
-        List<(ParseResult,string)> ParseWithSqlParser(string sqlScript);
+        (ParseResult Result, bool IsOk) ParseWithSqlParser(string sqlScript, string tableDefinition);
+        List<string> AnalyzeStatements(List<ParsedSqlStatement> parsedStatements, string tableDefinition);
     }
 
-    public class ParsedSqlStatement
+    public class AnalyzedSqlStatement
     {
         public ParseResult ParseResult { get; set; }
         public List<string> Enhancements { get; set; } = new();
@@ -34,39 +35,84 @@ namespace SqlOptimizer.Web.Services
 
         public string OptimizeQueryWithTable(string sqlQuery, string tableDefinition)
         {
-            // TODO: Add real optimization logic using table definition
-            return $"-- Optimized (table-aware): {sqlQuery}\n-- Table: {tableDefinition}";
+            // Parse the SQL script
+            var parsedStatements = ParseWithSqlParser(sqlQuery, tableDefinition);
+            
+            if (!parsedStatements.IsOk || !parsedStatements.Result.IsValid)
+            {
+                return $"-- Error: Parsing failed";
+            }
+
+            // Analyze the statements for optimizations
+            var allEnhancements = AnalyzeStatements(parsedStatements.Result.Statements, tableDefinition);
+            
+            // Return optimized query with suggestions
+            var result = $"-- Original Query:\n{sqlQuery}\n\n";
+            if (allEnhancements.Any())
+            {
+                result += "-- Optimization Suggestions:\n";
+                result += string.Join("\n", allEnhancements.Select(e => $"-- {e}"));
+            }
+            else
+            {
+                result += "-- No optimization suggestions found.";
+            }
+            return result;
         }
-        public List<ParsedSqlStatement> ParseWithSqlParser(string sqlScript, string tableDefinition)
+
+        public (ParseResult Result, bool IsOk) ParseWithSqlParser(string sqlScript, string tableDefinition)
         {
-            var results = new List<ParseResult>();
-            if (string.IsNullOrWhiteSpace(sqlScript) || string.IsNullOrWhiteSpace(tableDefinition)) return results;
+            if (string.IsNullOrWhiteSpace(sqlScript) || string.IsNullOrWhiteSpace(tableDefinition))
+            {
+                return (null, false);
+            }
+
             var table = new Table(tableDefinition);
             var parser = new Parser();
-            var result = parser.Parse(sqlScript);
+            ParseResult result = parser.Parse(sqlScript);
 
             if (!result.IsValid || result.Statements.Count == 0)
-                return results;
+            {
+                return (result, false);
+            }
+
+            return (result, true);
+        }
+
+        public List<string> AnalyzeStatements(List<ParsedSqlStatement> parsedStatements, string tableDefinition)
+        {
+            var allEnhancements = new List<string>();
+            var table = new Table(tableDefinition);
+            
+            var parser = new Parser();
+            var result = parser.Parse(string.Join("; ", parsedStatements.Select(p => p.Raw)) + ";");
+            
+            if (!result.IsValid || result.Statements.Count == 0)
+                return allEnhancements;
 
             foreach (var stmt in result.Statements)
             {                    
                 var enhancements = new List<string>();
-                DetectSqlInjectionVulnerabilities(stmt, enhancements);
                 
                 // SELECT
                 if (stmt is SelectStatement select)
                 {
-                    var enhancements = new List<string>();
                     if (stmt.Columns.Count == 1 && stmt.Columns[0].ToString() == "*")
                     {
-                        enhancements.Add("Avoid SELECT *, it returns unnessesary data and slows things down.");
+                        enhancements.Add("Avoid SELECT *, it returns unnecessary data and slows things down.");
                     }   
-                    if (select.Where != null)
+                    if (stmt.Where != null)
                     {
-                        DetectMissingIndexedColumnsInWhereClause(select.Where, table, enhancements);
-                        DetectLateWhereClauses(select, enhancements);
-                        DetectRepeatedConditions(result.Statements, enhancements);
+                        var whereColumns = ExtractColumnsFromWhereClause(stmt.Where);
+                        var indexedColumns = table.indexes.Select(index => index.columns.Select(col => col.name)).ToList();
+                        
+                        if (!whereColumns.Any(col => indexedColumns.Any(index => index.Contains(col))))
+                        {
+                            enhancements.Add("WHERE clause doesn't use indexed columns - consider adding indexes");
+                        }
                     }
+                    DetectLateWhereClauses(stmt, enhancements);
+                    DetectRepeatedConditions(result.Statements, enhancements);
                 }
                 // INSERT
                 else if (stmt is InsertStatement insert)
@@ -83,9 +129,10 @@ namespace SqlOptimizer.Web.Services
                 {
                     DetectUnsafeStatements(stmt, StatementType.DELETE, enhancements);
                 }
-                results.Add(new ParseResult(stmt, enhancements));
+                
+                allEnhancements.AddRange(enhancements);
             }
-            return results;
+            return allEnhancements;
         }
 
         public List<string> ExtractColumnsFromWhereClause(Expression whereExpression)
