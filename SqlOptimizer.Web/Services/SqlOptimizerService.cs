@@ -5,6 +5,13 @@ using SqlParser.Ast;
 
 namespace SqlOptimizer.Web.Services
 {
+    public enum StatementType
+    {
+        INSERT,
+        UPDATE,
+        DELETE
+    }
+
     public interface ISqlOptimizerService
     {
         string OptimizeQuery(string sqlQuery);
@@ -30,7 +37,7 @@ namespace SqlOptimizer.Web.Services
             // TODO: Add real optimization logic using table definition
             return $"-- Optimized (table-aware): {sqlQuery}\n-- Table: {tableDefinition}";
         }
-        public List<ParseResult> ParseWithSqlParser(string sqlScript, string tableDefinition)
+        public List<ParsedSqlStatement> ParseWithSqlParser(string sqlScript, string tableDefinition)
         {
             var results = new List<ParseResult>();
             if (string.IsNullOrWhiteSpace(sqlScript) || string.IsNullOrWhiteSpace(tableDefinition)) return results;
@@ -64,18 +71,19 @@ namespace SqlOptimizer.Web.Services
                 // INSERT
                 else if (stmt is InsertStatement insert)
                 {
-                    DetectUnsafeInsertStatements(insert, enhancements);
+                    DetectUnsafeStatements(stmt, StatementType.INSERT, enhancements);
                 }
                 // UPDATE
                 else if (stmt is UpdateStatement update)
                 {
-                    
+                    DetectUnsafeStatements(stmt, StatementType.UPDATE, enhancements);
                 }
                 // DELETE
                 else if (stmt is DeleteStatement delete)
                 {
-                    DetectUnsafeDeleteStatements(delete, enhancements);
+                    DetectUnsafeStatements(stmt, StatementType.DELETE, enhancements);
                 }
+                results.Add(new ParseResult(stmt, enhancements));
             }
             return results;
         }
@@ -110,21 +118,11 @@ namespace SqlOptimizer.Web.Services
             }
         }
 
-        public void DetectUnsafeInsertStatements(InsertStatement insert, List<string> enhancements)
+        public void DetectUnsafeStatements(Statement stmt, StatementType statementType, List<string> enhancements)
         {
-            // Check if INSERT uses VALUES without explicit column names
-            if (insert.Columns == null || insert.Columns.Count == 0)
+            if (stmt.Columns == null || stmt.Columns.Count == 0)
             {
-                enhancements.Add("INSERT statement missing column names. Use explicit column names for safety and clarity.");
-            }
-        }
-
-        public void DetectUnsafeDeleteStatements(DeleteStatement delete, List<string> enhancements)
-        {
-            // Check if DELETE uses VALUES without explicit column names
-            if (delete.Columns == null || delete.Columns.Count == 0)
-            {
-                enhancements.Add("DELETE statement missing column names. Use explicit column names for safety and clarity.");
+                enhancements.Add($"{statementType} statement missing column names. Use explicit column names for safety and clarity.");
             }
         }
 
