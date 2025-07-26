@@ -74,7 +74,7 @@ namespace SqlOptimizer.Web.Services
                 // DELETE
                 else if (stmt is DeleteStatement delete)
                 {
-
+                    DetectUnsafeDeleteStatements(delete, enhancements);
                 }
             }
             return results;
@@ -116,6 +116,15 @@ namespace SqlOptimizer.Web.Services
             if (insert.Columns == null || insert.Columns.Count == 0)
             {
                 enhancements.Add("INSERT statement missing column names. Use explicit column names for safety and clarity.");
+            }
+        }
+
+        public void DetectUnsafeDeleteStatements(DeleteStatement delete, List<string> enhancements)
+        {
+            // Check if DELETE uses VALUES without explicit column names
+            if (delete.Columns == null || delete.Columns.Count == 0)
+            {
+                enhancements.Add("DELETE statement missing column names. Use explicit column names for safety and clarity.");
             }
         }
 
