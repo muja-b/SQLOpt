@@ -9,7 +9,7 @@
   <ItemGroup>
     <PackageReference Include="Antlr4.Runtime.Standard" Version="4.13.1" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.6" />
-    <PackageReference Include="SQLParser" Version="4.0.2" />
+    <PackageReference Include="Microsoft.SqlServer.Management.SqlParser" Version="172.20.0" />
   </ItemGroup>
 
 </Project>

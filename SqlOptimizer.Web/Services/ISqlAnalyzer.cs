@@ -1,10 +1,13 @@
-using SqlParser.Ast;
-using SqlParser;
+using SqlOptimizer.Web.Models;
 
 namespace SqlOptimizer.Web.Services
 {
     public interface ISqlAnalyzer
     {
-        List<string> AnalyzeStatements(ParseResult sqlResult, Table tableResult);
+        // Enhanced analysis with options and proper result model
+        OptimizationResult AnalyzeStatements(string sqlText, string tableDefinition, AnalysisOptions? options = null);
+        
+        // Backward compatibility
+        List<string> AnalyzeStatements(string sqlText, string tableDefinition);
     }
 } 
